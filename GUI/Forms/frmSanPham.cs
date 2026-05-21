@@ -2,50 +2,158 @@
 using DTO;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Text;
 using System.Windows.Forms;
 
 namespace GUI.Forms
 {
     public partial class frmSanPham : Form
     {
-        // Khởi tạo các đối tượng xử lý nghiệp vụ trung gian
         private SanPhamBUS spBUS = new SanPhamBUS();
         private LoaiSPBUS loaiBUS = new LoaiSPBUS();
+
+        private TextBox txtTimKiem;
+        private DataGridView dgvSanPham;
+        private TextBox txtMaSP, txtTenSP, txtGiaBan, txtSoLuong, txtDVT;
+        private ComboBox cboLoaiSP;
+        private Button btnThem, btnSua, btnXoa, btnLuu;
 
         public frmSanPham()
         {
             InitializeComponent();
-            DinhDangGiaoDienLuoi();
         }
 
-        // Tối ưu hiển thị bảng dữ liệu giống phong cách thiết kế hiện đại
-        private void DinhDangGiaoDienLuoi()
-        {
-            dgvSanPham.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            dgvSanPham.EnableHeadersVisualStyles = false;
-            dgvSanPham.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(44, 62, 80);
-            dgvSanPham.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            dgvSanPham.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-            dgvSanPham.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
-        }
-
-        // Sự kiện Form Load: Tự động tải dữ liệu lên các thành phần khi mở cửa sổ
         private void frmSanPham_Load(object sender, EventArgs e)
         {
-            try
+            BuildLayout();
+            TaiDanhMucLoaiSP();
+            TaiDanhSachSanPham();
+        }
+
+        private void BuildLayout()
+        {
+            SuspendLayout();
+            Controls.Clear();
+
+            Text = "Quản Lý Sản Phẩm";
+            StartPosition = FormStartPosition.CenterScreen;
+            Size = new Size(900, 700);
+            BackColor = Color.White;
+
+            // Header
+            Panel headerPanel = new Panel
             {
-                TaiDanhMucLoaiSP();
-                TaiDanhSachSanPham();
-            }
-            catch (Exception ex)
+                Dock = DockStyle.Top,
+                Height = 50,
+                BackColor = Color.FromArgb(200, 240, 180),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            Label title = new Label
             {
-                System.Diagnostics.Debug.WriteLine($"Form load error: {ex.Message}\n{ex.StackTrace}");
-                MessageBox.Show($"Lỗi khi mở form: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+                Dock = DockStyle.Fill,
+                Text = "QUẢN LÝ SẢN PHẨM",
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = Color.Black
+            };
+            headerPanel.Controls.Add(title);
+
+            // Search Panel
+            Panel searchPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 70,
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(12)
+            };
+
+            Label lblSearch = new Label { Text = "Tìm kiếm", Left = 10, Top = 10, Width = 60 };
+            txtTimKiem = new TextBox { Left = 70, Top = 8, Width = 160, Height = 24 };
+            Button btnTim = new Button { Text = "Tìm", Left = 240, Top = 8, Width = 60, Height = 24, BackColor = Color.LightBlue };
+            Button btnRefresh = new Button { Text = "Tải lại", Left = 310, Top = 8, Width = 60, Height = 24, BackColor = Color.LightGray };
+
+            btnThem = new Button { Text = "Thêm", Left = 240, Top = 40, Width = 60, Height = 24, BackColor = Color.LightCoral };
+            btnSua = new Button { Text = "Sửa", Left = 310, Top = 40, Width = 60, Height = 24, BackColor = Color.LightYellow };
+            btnXoa = new Button { Text = "Xóa", Left = 380, Top = 40, Width = 60, Height = 24, BackColor = Color.LightPink };
+
+            searchPanel.Controls.AddRange(new Control[] { lblSearch, txtTimKiem, btnTim, btnRefresh, btnThem, btnSua, btnXoa });
+
+            // Grid Panel
+            Panel gridPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                Padding = new Padding(12),
+                BorderStyle = BorderStyle.None
+            };
+
+            dgvSanPham = new DataGridView
+            {
+                Dock = DockStyle.Top,
+                Height = 250,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                AllowUserToAddRows = false,
+                ReadOnly = true,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            dgvSanPham.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(100, 149, 237);
+            dgvSanPham.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgvSanPham.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+
+            // Info Panel
+            Panel infoPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(12)
+            };
+
+            Label lblInfo = new Label { Text = "Thông tin sản phẩm", Left = 10, Top = 10, Width = 200, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
+
+            Label lbl1 = new Label { Text = "Mã SP", Left = 10, Top = 40, Width = 80 };
+            txtMaSP = new TextBox { Left = 100, Top = 38, Width = 160, Height = 22 };
+
+            Label lbl2 = new Label { Text = "Tên Sản Phẩm", Left = 10, Top = 70, Width = 80 };
+            txtTenSP = new TextBox { Left = 100, Top = 68, Width = 160, Height = 22 };
+
+            Label lbl3 = new Label { Text = "Loại", Left = 10, Top = 100, Width = 80 };
+            cboLoaiSP = new ComboBox { Left = 100, Top = 98, Width = 160, Height = 22, DropDownStyle = ComboBoxStyle.DropDownList };
+
+            Label lbl4 = new Label { Text = "Đơn giá", Left = 300, Top = 40, Width = 80 };
+            txtGiaBan = new TextBox { Left = 390, Top = 38, Width = 160, Height = 22 };
+
+            Label lbl5 = new Label { Text = "Đơn vị tính", Left = 300, Top = 70, Width = 80 };
+            txtDVT = new TextBox { Left = 390, Top = 68, Width = 160, Height = 22 };
+
+            Label lbl6 = new Label { Text = "Số lượng tồn", Left = 300, Top = 100, Width = 80 };
+            txtSoLuong = new TextBox { Left = 390, Top = 98, Width = 160, Height = 22 };
+
+            btnLuu = new Button { Text = "Lưu", Left = 600, Top = 60, Width = 80, Height = 40, BackColor = Color.PeachPuff, Font = new Font("Segoe UI", 10F) };
+
+            infoPanel.Controls.AddRange(new Control[] { lblInfo, lbl1, txtMaSP, lbl2, txtTenSP, lbl3, cboLoaiSP, lbl4, txtGiaBan, lbl5, txtDVT, lbl6, txtSoLuong, btnLuu });
+
+            gridPanel.Controls.Add(infoPanel);
+            gridPanel.Controls.Add(dgvSanPham);
+
+            Controls.Add(gridPanel);
+            Controls.Add(searchPanel);
+            Controls.Add(headerPanel);
+
+            // Events
+            txtTimKiem.TextChanged += TxtTimKiem_TextChanged;
+            btnTim.Click += (s, e) => TaiDanhSachSanPham();
+            btnRefresh.Click += (s, e) => { TaiDanhSachSanPham(); LamMoiVungNhap(); };
+            btnThem.Click += BtnThem_Click;
+            btnSua.Click += BtnSua_Click;
+            btnXoa.Click += BtnXoa_Click;
+            btnLuu.Click += BtnLuu_Click;
+            dgvSanPham.CellClick += DgvSanPham_CellClick;
+
+            ResumeLayout(true);
         }
 
         private void TaiDanhMucLoaiSP()
@@ -59,168 +167,140 @@ namespace GUI.Forms
         {
             try
             {
-                List<SanPham> data = spBUS.LayDS();
-
-                if (data == null || data.Count == 0)
-                {
-                    System.Diagnostics.Debug.WriteLine("WARNING: No products loaded from database!");
-                    dgvSanPham.DataSource = new List<SanPham>();
-                    return;
-                }
-
+                var data = spBUS.LayDS();
                 dgvSanPham.DataSource = data;
 
-                if (dgvSanPham.Columns["MaSP"] != null) dgvSanPham.Columns["MaSP"].HeaderText = "Mã Sản Phẩm";
+                if (dgvSanPham.Columns["MaSP"] != null) dgvSanPham.Columns["MaSP"].HeaderText = "Mã SP";
                 if (dgvSanPham.Columns["TenSP"] != null) dgvSanPham.Columns["TenSP"].HeaderText = "Tên Sản Phẩm";
-                if (dgvSanPham.Columns["GiaBan"] != null) dgvSanPham.Columns["GiaBan"].HeaderText = "Giá Bán (VNĐ)";
-                if (dgvSanPham.Columns["SoLuongTon"] != null) dgvSanPham.Columns["SoLuongTon"].HeaderText = "Tồn Kho";
-                if (dgvSanPham.Columns["DonViTinh"] != null) dgvSanPham.Columns["DonViTinh"].HeaderText = "ĐVT";
-                if (dgvSanPham.Columns["MaLoai"] != null) dgvSanPham.Columns["MaLoai"].HeaderText = "Mã Loại Danh Mục";
+                if (dgvSanPham.Columns["GiaBan"] != null) dgvSanPham.Columns["GiaBan"].HeaderText = "Đơn giá";
+                if (dgvSanPham.Columns["SoLuongTon"] != null) dgvSanPham.Columns["SoLuongTon"].HeaderText = "Số lượng tồn";
+                if (dgvSanPham.Columns["DonViTinh"] != null) dgvSanPham.Columns["DonViTinh"].HeaderText = "Đơn vị tính";
+                if (dgvSanPham.Columns["MaLoai"] != null) dgvSanPham.Columns["MaLoai"].HeaderText = "Loại";
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error loading products: {ex.Message}\n{ex.StackTrace}");
                 MessageBox.Show($"Lỗi tải sản phẩm: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-   
-
-        // 1. CHỨC NĂNG TÌM KIẾM: Lọc dữ liệu ngay khi người dùng đang gõ phím (Real-time Search)
-        private void txtTimKiem_TextChanged(object sender, EventArgs e)
+        private void TxtTimKiem_TextChanged(object sender, EventArgs e)
         {
-            string tuKhoa = txtTimKiem.Text.Trim().ToLower();
-            List<SanPham> fullList = spBUS.LayDS();
-
-            // Lọc danh sách chứa từ khóa tìm kiếm theo tên sản phẩm
-            List<SanPham> filteredList = fullList.FindAll(sp => sp.TenSP.ToLower().Contains(tuKhoa));
-            dgvSanPham.DataSource = filteredList;
+            try
+            {
+                string keyword = txtTimKiem.Text.Trim().ToLower();
+                var data = spBUS.LayDS();
+                var filtered = data.FindAll(x => x.TenSP.ToLower().Contains(keyword) || x.MaSP.ToLower().Contains(keyword));
+                dgvSanPham.DataSource = filtered;
+            }
+            catch { }
         }
 
-        // 2. SỰ KIỆN CLICK LƯỚI DỮ LIỆU: Đẩy dữ liệu ngược lên vùng nhập để chỉnh sửa
-        private void dgvSanPham_CellClick(object sender, DataGridViewCellEventArgs e)
+        private void DgvSanPham_CellClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex >= 0)
-            {
-                DataGridViewRow row = dgvSanPham.Rows[e.RowIndex];
-
-                txtMaSP.Text = row.Cells["MaSP"].Value.ToString();
-                txtTenSP.Text = row.Cells["TenSP"].Value.ToString();
-                txtGiaBan.Text = Convert.ToDecimal(row.Cells["GiaBan"].Value).ToString("G0");
-                txtSoLuong.Text = row.Cells["SoLuongTon"].Value.ToString();
-                txtDVT.Text = row.Cells["DonViTinh"].Value.ToString();
-                cboLoaiSP.SelectedValue = row.Cells["MaLoai"].Value.ToString();
-
-                // Khóa trường Mã sản phẩm không cho phép chỉnh sửa nhằm đảm bảo tính toàn vẹn dữ liệu
-                txtMaSP.Enabled = false;
-            }
+            if (e.RowIndex < 0) return;
+            var row = dgvSanPham.Rows[e.RowIndex];
+            txtMaSP.Text = row.Cells["MaSP"].Value?.ToString();
+            txtTenSP.Text = row.Cells["TenSP"].Value?.ToString();
+            txtGiaBan.Text = row.Cells["GiaBan"].Value?.ToString();
+            txtSoLuong.Text = row.Cells["SoLuongTon"].Value?.ToString();
+            txtDVT.Text = row.Cells["DonViTinh"].Value?.ToString();
+            if (row.Cells["MaLoai"].Value != null) cboLoaiSP.SelectedValue = row.Cells["MaLoai"].Value;
         }
 
-        // 3. CHỨC NĂNG THÊM MỚI
-        private void btnThem_Click(object sender, EventArgs e)
-        {
-            if (!KiemTraDuLieuDauVao()) return;
-
-            // Đóng gói thông tin thu thập được vào thực thể DTO
-            SanPham sp = ThuThapThongTinSanPhan();
-
-            if (spBUS.LuuSanPham(sp))
-            {
-                MessageBox.Show("Thêm sản phẩm mới vào danh mục thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                TaiDanhSachSanPham();
-                LamMoiVungNhap();
-            }
-            else
-            {
-                MessageBox.Show("Thêm mới thất bại. Vui lòng kiểm tra lại mã sản phẩm hoặc giá bán hợp lệ!", "Lỗi hệ thống", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // 4. CHỨC NĂNG CẬP NHẬT (SỬA)
-        private void btnSua_Click(object sender, EventArgs e)
-        {
-            if (txtMaSP.Enabled == true)
-            {
-                MessageBox.Show("Vui lòng chọn một sản phẩm cụ thể từ danh sách hiển thị bên dưới trước khi sửa!", "Nhắc nhở", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            if (!KiemTraDuLieuDauVao()) return;
-
-            SanPham sp = ThuThapThongTinSanPhan();
-
-            if (spBUS.SuaSanPham(sp))
-            {
-                MessageBox.Show("Cập nhật thông tin thay đổi của sản phẩm thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                TaiDanhSachSanPham();
-                LamMoiVungNhap();
-            }
-            else
-            {
-                MessageBox.Show("Cập nhật thất bại. Vui lòng kiểm tra lại cấu trúc dữ liệu dữ liệu!", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // 5. CHỨC NĂNG XÓA BỎ
-        private void btnXoa_Click(object sender, EventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(txtMaSP.Text))
-            {
-                MessageBox.Show("Vui lòng bấm chọn sản phẩm muốn xóa khỏi hệ thống!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            DialogResult xacNhan = MessageBox.Show($"Bạn có chắc chắn muốn xóa vĩnh viễn mã sản phẩm [{txtMaSP.Text}] này không?", "Xác nhận hành động", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            if (xacNhan == DialogResult.Yes)
-            {
-                if (spBUS.XoaSanPham(txtMaSP.Text.Trim()))
-                {
-                    MessageBox.Show("Sản phẩm đã được gỡ bỏ hoàn toàn khỏi hệ thống dữ liệu.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    TaiDanhSachSanPham();
-                    LamMoiVungNhap();
-                }
-                else
-                {
-                    MessageBox.Show("Không thể xóa sản phẩm này! Hàng hóa này đã tồn tại trong lịch sử Hóa đơn hoặc Phiếu nhập kho dữ liệu cũ.", "Cảnh báo bảo mật dữ liệu", MessageBoxButtons.OK, MessageBoxIcon.Stop);
-                }
-            }
-        }
-
-        // Các phương thức bổ trợ tối ưu hóa luồng hiển thị code
-        private bool KiemTraDuLieuDauVao()
+        private void BtnThem_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtMaSP.Text) || string.IsNullOrWhiteSpace(txtTenSP.Text))
             {
-                MessageBox.Show("Vui lòng không để trống các ô dữ liệu bắt buộc (Mã sản phẩm và Tên sản phẩm)!", "Lỗi nhập liệu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return false;
+                MessageBox.Show("Vui lòng nhập mã và tên sản phẩm", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
             }
-            return true;
-        }
 
-        private SanPham ThuThapThongTinSanPhan()
-        {
-            return new SanPham
+            var sp = new SanPham
             {
                 MaSP = txtMaSP.Text.Trim(),
                 TenSP = txtTenSP.Text.Trim(),
-                GiaBan = string.IsNullOrEmpty(txtGiaBan.Text) ? 0 : Convert.ToDecimal(txtGiaBan.Text),
-                SoLuongTon = string.IsNullOrEmpty(txtSoLuong.Text) ? 0 : Convert.ToInt32(txtSoLuong.Text),
+                GiaBan = decimal.TryParse(txtGiaBan.Text, out decimal g) ? g : 0,
+                SoLuongTon = int.TryParse(txtSoLuong.Text, out int s) ? s : 0,
                 DonViTinh = txtDVT.Text.Trim(),
-                MaLoai = cboLoaiSP.SelectedValue?.ToString() ?? string.Empty
+                MaLoai = cboLoaiSP.SelectedValue?.ToString() ?? ""
             };
+
+            if (spBUS.LuuSanPham(sp))
+            {
+                MessageBox.Show("Thêm sản phẩm thành công", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                TaiDanhSachSanPham();
+                LamMoiVungNhap();
+            }
+            else
+                MessageBox.Show("Thêm thất bại", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        private void BtnSua_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtMaSP.Text))
+            {
+                MessageBox.Show("Vui lòng chọn sản phẩm cần sửa", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var sp = new SanPham
+            {
+                MaSP = txtMaSP.Text.Trim(),
+                TenSP = txtTenSP.Text.Trim(),
+                GiaBan = decimal.TryParse(txtGiaBan.Text, out decimal g) ? g : 0,
+                SoLuongTon = int.TryParse(txtSoLuong.Text, out int s) ? s : 0,
+                DonViTinh = txtDVT.Text.Trim(),
+                MaLoai = cboLoaiSP.SelectedValue?.ToString() ?? ""
+            };
+
+            if (spBUS.SuaSanPham(sp))
+            {
+                MessageBox.Show("Cập nhật sản phẩm thành công", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                TaiDanhSachSanPham();
+                LamMoiVungNhap();
+            }
+            else
+                MessageBox.Show("Cập nhật thất bại", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        private void BtnXoa_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtMaSP.Text))
+            {
+                MessageBox.Show("Vui lòng chọn sản phẩm cần xóa", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (MessageBox.Show($"Xóa sản phẩm {txtMaSP.Text}?", "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return;
+
+            if (spBUS.XoaSanPham(txtMaSP.Text.Trim()))
+            {
+                MessageBox.Show("Xóa sản phẩm thành công", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                TaiDanhSachSanPham();
+                LamMoiVungNhap();
+            }
+            else
+                MessageBox.Show("Xóa thất bại", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        private void BtnLuu_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtMaSP.Text))
+                BtnThem_Click(null, null);
+            else
+                BtnSua_Click(null, null);
         }
 
         private void LamMoiVungNhap()
         {
-            txtMaSP.Text = "";
-            txtTenSP.Text = "";
-            txtGiaBan.Text = "0";
-            txtSoLuong.Text = "0";
-            txtDVT.Text = "";
+            txtMaSP.Clear();
+            txtTenSP.Clear();
+            txtGiaBan.Clear();
+            txtSoLuong.Clear();
+            txtDVT.Clear();
             if (cboLoaiSP.Items.Count > 0) cboLoaiSP.SelectedIndex = 0;
-
-            // Giải phóng trạng thái khóa để tiếp tục nhập mới sản phẩm khác
-            txtMaSP.Enabled = true;
+            txtTimKiem.Clear();
         }
     }
 }
