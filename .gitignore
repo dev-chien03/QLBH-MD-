@@ -1,0 +1,22 @@
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.cache
+
+[Bb]in/
+[Oo]bj/
+
+packages/
+TestResults/
+
+# NuGet / build artifacts
+*.nupkg
+*.snupkg
+
+# Local logs and temporary files
+*.log
+*.tmp
+*.temp
