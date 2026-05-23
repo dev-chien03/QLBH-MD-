@@ -61,5 +61,64 @@ namespace DAL.Implementations
             int count = Convert.ToInt32(dt.Rows[0]["TotalCount"]) + 1;
             return "HD" + count.ToString("D3");
         }
+
+        public List<ChiTietHD> LayTatCaChiTiet()
+        {
+            DataTable dt = db.ExecuteQueryText("SELECT MaHD, MaSP, SoLuong, DonGia FROM ChiTietHD");
+            List<ChiTietHD> list = new List<ChiTietHD>();
+            foreach (DataRow r in dt.Rows)
+            {
+                list.Add(new ChiTietHD
+                {
+                    MaHD = r["MaHD"].ToString(),
+                    MaSP = r["MaSP"].ToString(),
+                    SoLuong = Convert.ToInt32(r["SoLuong"]),
+                    DonGia = Convert.ToDecimal(r["DonGia"])
+                });
+            }
+            return list;
+        }
+
+        // Lưu hóa đơn + toàn bộ chi tiết trong 1 transaction. Mã HĐ được sinh
+        // bên trong transaction (MAX+1) để không race với phiên khác.
+        // Trên hd và mỗi item của dsChiTiet, MaHD sẽ được set lại sau khi sinh.
+        public void XuatHoaDonAtomic(HoaDon hd, List<ChiTietHD> dsChiTiet)
+        {
+            db.ExecuteTransaction((conn, tx) =>
+            {
+                // Sinh MaHD race-free trong transaction
+                using (var cmdGen = new MySqlCommand(
+                    "SELECT COALESCE(MAX(CAST(SUBSTRING(MaHD,3) AS UNSIGNED)),0)+1 FROM HoaDon FOR UPDATE",
+                    conn, tx))
+                {
+                    int next = Convert.ToInt32(cmdGen.ExecuteScalar());
+                    hd.MaHD = "HD" + next.ToString("D3");
+                }
+                foreach (var ct in dsChiTiet) ct.MaHD = hd.MaHD;
+
+                // INSERT HoaDon (MaKH rỗng -> NULL để giữ schema sạch)
+                using (var cmdHD = new MySqlCommand("sp_LuuHoaDon", conn, tx) { CommandType = CommandType.StoredProcedure })
+                {
+                    cmdHD.Parameters.AddWithValue("p_MaHD", hd.MaHD);
+                    cmdHD.Parameters.AddWithValue("p_Ngay", hd.NgayLap);
+                    cmdHD.Parameters.AddWithValue("p_MaKH", string.IsNullOrWhiteSpace(hd.MaKH) ? (object)DBNull.Value : hd.MaKH);
+                    cmdHD.Parameters.AddWithValue("p_Tong", hd.TongTien);
+                    cmdHD.ExecuteNonQuery();
+                }
+
+                // INSERT từng ChiTietHD (SP tự trừ tồn kho)
+                foreach (var ct in dsChiTiet)
+                {
+                    using (var cmdCT = new MySqlCommand("sp_LuuChiTietHD", conn, tx) { CommandType = CommandType.StoredProcedure })
+                    {
+                        cmdCT.Parameters.AddWithValue("p_MaHD", ct.MaHD);
+                        cmdCT.Parameters.AddWithValue("p_MaSP", ct.MaSP);
+                        cmdCT.Parameters.AddWithValue("p_SoLuong", ct.SoLuong);
+                        cmdCT.Parameters.AddWithValue("p_DonGia", ct.DonGia);
+                        cmdCT.ExecuteNonQuery();
+                    }
+                }
+            });
+        }
     }
 }

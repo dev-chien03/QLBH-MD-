@@ -1,196 +1,124 @@
-﻿using BUS;
+using BUS;
 using DTO;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Linq;
 
 namespace GUI.Forms
 {
     public partial class frmKhachHang : Form
     {
         private KhachHangBUS khBUS = new KhachHangBUS();
-
-        private TextBox txtTimKiem;
+        private TextBox txtTimKiem, txtMaKH, txtTenKH, txtSDT, txtDiaChi;
         private DataGridView dgvKhachHang;
-        private TextBox txtMaKH, txtTenKH, txtSDT, txtDiaChi, txtNgayThamGia;
         private Button btnThem, btnSua, btnXoa, btnLuu;
 
         public frmKhachHang()
         {
             InitializeComponent();
+            this.Load += frmKhachHang_Load;
         }
 
         private void frmKhachHang_Load(object sender, EventArgs e)
         {
             BuildLayout();
-            TaiDanhSachKhachHang();
+            LoadData();
         }
 
         private void BuildLayout()
         {
-            SuspendLayout();
-            Controls.Clear();
-
-            Text = "Quản Lý Khách Hàng";
-            StartPosition = FormStartPosition.CenterScreen;
-            Size = new Size(1000, 700);
-            BackColor = Color.White;
+            this.SuspendLayout();
+            this.Controls.Clear();
+            this.Text = "Quản Lý Khách Hàng";
+            this.Size = new Size(1200, 750);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.BackColor = Color.White;
 
             // Header
-            Panel headerPanel = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 50,
-                BackColor = Color.FromArgb(200, 240, 180),
-                BorderStyle = BorderStyle.FixedSingle
-            };
+            Panel pnlHeader = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(200, 240, 180), BorderStyle = BorderStyle.FixedSingle };
+            Label lblTitle = new Label { Dock = DockStyle.Fill, Text = "QUẢN LÝ KHÁCH HÀNG", TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Arial", 14, FontStyle.Bold) };
+            pnlHeader.Controls.Add(lblTitle);
 
-            Label title = new Label
-            {
-                Dock = DockStyle.Fill,
-                Text = "QUẢN LÝ KHÁCH HÀNG",
-                TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
-                ForeColor = Color.Black
-            };
-            headerPanel.Controls.Add(title);
+            // Top Panel - Search & Buttons
+            Panel pnlTop = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = Color.White, BorderStyle = BorderStyle.FixedSingle, Padding = new Padding(10) };
+            
+            Label lblSearch = new Label { Text = "Tìm kiếm", Location = new Point(10, 12), AutoSize = true, Font = new Font("Arial", 9) };
+            txtTimKiem = new TextBox { Location = new Point(60, 10), Size = new Size(150, 22), Font = new Font("Arial", 10) };
+            Button btnTim = new Button { Text = "Tìm", Location = new Point(218, 10), Size = new Size(50, 22), BackColor = Color.FromArgb(100, 180, 255), Font = new Font("Arial", 9) };
+            
+            btnThem = new Button { Text = "Thêm", Location = new Point(280, 10), Size = new Size(50, 22), BackColor = Color.LightPink, Font = new Font("Arial", 9) };
+            btnSua = new Button { Text = "Sửa", Location = new Point(340, 10), Size = new Size(50, 22), BackColor = Color.FromArgb(255, 200, 100), Font = new Font("Arial", 9) };
+            btnXoa = new Button { Text = "Xóa", Location = new Point(400, 10), Size = new Size(50, 22), BackColor = Color.Plum, Font = new Font("Arial", 9) };
+            
+            pnlTop.Controls.AddRange(new Control[] { lblSearch, txtTimKiem, btnTim, btnThem, btnSua, btnXoa });
 
-            // Search Panel
-            Panel searchPanel = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 70,
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
-                Padding = new Padding(12)
-            };
-
-            Label lblSearch = new Label { Text = "Tìm kiếm", Left = 10, Top = 10, Width = 60 };
-            txtTimKiem = new TextBox { Left = 70, Top = 8, Width = 160, Height = 24 };
-            Button btnTim = new Button { Text = "Tìm", Left = 240, Top = 8, Width = 60, Height = 24, BackColor = Color.LightBlue };
-            Button btnRefresh = new Button { Text = "Tải lại", Left = 310, Top = 8, Width = 60, Height = 24, BackColor = Color.LightGray };
-
-            btnThem = new Button { Text = "Thêm", Left = 240, Top = 40, Width = 60, Height = 24, BackColor = Color.LightCoral };
-            btnSua = new Button { Text = "Sửa", Left = 310, Top = 40, Width = 60, Height = 24, BackColor = Color.LightYellow };
-            btnXoa = new Button { Text = "Xóa", Left = 380, Top = 40, Width = 60, Height = 24, BackColor = Color.LightPink };
-
-            searchPanel.Controls.AddRange(new Control[] { lblSearch, txtTimKiem, btnTim, btnRefresh, btnThem, btnSua, btnXoa });
-
-            // Main Content - 2 columns
-            Panel mainPanel = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.None
-            };
+            // Content Panel - Left (Grid) & Right (Info)
+            Panel pnlContent = new Panel { Dock = DockStyle.Fill, Padding = new Padding(5) };
 
             // Left Panel - Grid
-            Panel leftPanel = new Panel
-            {
-                Dock = DockStyle.Left,
-                Width = 500,
-                BackColor = Color.White,
-                Padding = new Padding(12),
-                BorderStyle = BorderStyle.None
-            };
-
-            Label lblGridTitle = new Label { Text = "Danh sách khách hàng", Left = 10, Top = 5, Width = 200, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
-
-            dgvKhachHang = new DataGridView
-            {
-                Dock = DockStyle.Fill,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                AllowUserToAddRows = false,
+            Panel pnlLeft = new Panel { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle, Padding = new Padding(10) };
+            Label lblGridTitle = new Label { Text = "Danh sách khách hàng", Font = new Font("Arial", 10, FontStyle.Bold), Location = new Point(10, 10), AutoSize = true };
+            
+            dgvKhachHang = new DataGridView 
+            { 
+                Location = new Point(10, 35), 
+                Size = new Size(580, 450),
+                AllowUserToAddRows = false, 
                 ReadOnly = true,
-                BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
-                Top = 35
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
             dgvKhachHang.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(100, 149, 237);
             dgvKhachHang.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            dgvKhachHang.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-
-            leftPanel.Controls.Add(dgvKhachHang);
-            leftPanel.Controls.Add(lblGridTitle);
+            dgvKhachHang.ColumnHeadersDefaultCellStyle.Font = new Font("Arial", 9, FontStyle.Bold);
+            dgvKhachHang.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            
+            pnlLeft.Controls.Add(dgvKhachHang);
+            pnlLeft.Controls.Add(lblGridTitle);
 
             // Right Panel - Info
-            Panel rightPanel = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
-                Padding = new Padding(12)
-            };
+            Panel pnlRight = new Panel { Dock = DockStyle.Right, Width = 350, BorderStyle = BorderStyle.FixedSingle, Padding = new Padding(15) };
+            Label lblInfo = new Label { Text = "Thông tin khách hàng", Font = new Font("Arial", 10, FontStyle.Bold), Location = new Point(15, 10), AutoSize = true };
+            
+            Label lbl1 = new Label { Text = "Mã KH:", Location = new Point(15, 45), AutoSize = true };
+            txtMaKH = new TextBox { Location = new Point(100, 42), Size = new Size(180, 22), ReadOnly = true };
+            
+            Label lbl2 = new Label { Text = "Họ Tên:", Location = new Point(15, 75), AutoSize = true };
+            txtTenKH = new TextBox { Location = new Point(100, 72), Size = new Size(180, 22) };
+            
+            Label lbl3 = new Label { Text = "SĐT:", Location = new Point(15, 105), AutoSize = true };
+            txtSDT = new TextBox { Location = new Point(100, 102), Size = new Size(180, 22) };
+            
+            Label lbl4 = new Label { Text = "Địa chỉ:", Location = new Point(15, 135), AutoSize = true };
+            txtDiaChi = new TextBox { Location = new Point(100, 132), Size = new Size(180, 80), Multiline = true, ScrollBars = ScrollBars.Vertical };
+            
+            Label lbl5 = new Label { Text = "Ngày tham gia:", Location = new Point(15, 220), AutoSize = true };
+            TextBox txtNgayThamGia = new TextBox { Location = new Point(100, 217), Size = new Size(180, 22), ReadOnly = true };
+            
+            btnLuu = new Button { Text = "Lưu", Location = new Point(100, 260), Size = new Size(180, 35), BackColor = Color.FromArgb(200, 230, 200), Font = new Font("Arial", 10, FontStyle.Bold) };
+            
+            pnlRight.Controls.AddRange(new Control[] { 
+                lblInfo, lbl1, txtMaKH, lbl2, txtTenKH, lbl3, txtSDT, lbl4, txtDiaChi, lbl5, txtNgayThamGia, btnLuu 
+            });
 
-            Label lblInfo = new Label { Text = "Thông tin khách hàng", Left = 10, Top = 10, Width = 200, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
+            pnlContent.Controls.Add(pnlRight);
+            pnlContent.Controls.Add(pnlLeft);
 
-            Label lbl1 = new Label { Text = "Mã KH", Left = 10, Top = 40, Width = 80 };
-            txtMaKH = new TextBox { Left = 100, Top = 38, Width = 160, Height = 22, ReadOnly = true };
-
-            Label lbl2 = new Label { Text = "Họ Tên", Left = 10, Top = 70, Width = 80 };
-            txtTenKH = new TextBox { Left = 100, Top = 68, Width = 160, Height = 22 };
-
-            Label lbl3 = new Label { Text = "SDT", Left = 10, Top = 100, Width = 80 };
-            txtSDT = new TextBox { Left = 100, Top = 98, Width = 160, Height = 22 };
-
-            Label lbl4 = new Label { Text = "Địa chỉ", Left = 10, Top = 130, Width = 80 };
-            txtDiaChi = new TextBox { Left = 100, Top = 128, Width = 160, Height = 50, Multiline = true };
-
-            Label lbl5 = new Label { Text = "Ngày tham gia", Left = 10, Top = 190, Width = 80 };
-            txtNgayThamGia = new TextBox { Left = 100, Top = 188, Width = 160, Height = 22 };
-
-            Button btnLuu = new Button { Text = "Lưu", Left = 100, Top = 230, Width = 80, Height = 40, BackColor = Color.PeachPuff, Font = new Font("Segoe UI", 10F) };
-
-            rightPanel.Controls.AddRange(new Control[] { lblInfo, lbl1, txtMaKH, lbl2, txtTenKH, lbl3, txtSDT, lbl4, txtDiaChi, lbl5, txtNgayThamGia, btnLuu });
-
-            mainPanel.Controls.Add(rightPanel);
-            mainPanel.Controls.Add(leftPanel);
-
-            Controls.Add(mainPanel);
-            Controls.Add(searchPanel);
-            Controls.Add(headerPanel);
+            this.Controls.Add(pnlContent);
+            this.Controls.Add(pnlTop);
+            this.Controls.Add(pnlHeader);
 
             // Events
-            txtTimKiem.TextChanged += TxtTimKiem_TextChanged;
-            btnTim.Click += (s, e) => TaiDanhSachKhachHang();
-            btnRefresh.Click += (s, e) => { TaiDanhSachKhachHang(); LamMoiVungNhap(); };
+            btnTim.Click += (s, e) => LoadData();
             btnThem.Click += BtnThem_Click;
             btnSua.Click += BtnSua_Click;
             btnXoa.Click += BtnXoa_Click;
             btnLuu.Click += BtnLuu_Click;
             dgvKhachHang.CellClick += DgvKhachHang_CellClick;
+            txtTimKiem.TextChanged += (s, e) => SearchData();
 
-            ResumeLayout();
-        }
-
-        private void TaiDanhSachKhachHang()
-        {
-            try
-            {
-                List<KhachHang> danhSach = khBUS.LayDS();
-                dgvKhachHang.DataSource = danhSach;
-                dgvKhachHang.Columns["MaKH"].HeaderText = "Mã KH";
-                dgvKhachHang.Columns["TenKH"].HeaderText = "Họ Tên";
-                dgvKhachHang.Columns["SoDienThoai"].HeaderText = "SDT";
-                dgvKhachHang.Columns["DiaChi"].HeaderText = "Địa chỉ";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Lỗi tải dữ liệu: " + ex.Message, "Thông báo");
-            }
-        }
-
-        private void TxtTimKiem_TextChanged(object sender, EventArgs e)
-        {
-            try
-            {
-                List<KhachHang> danhSach = khBUS.TimTheoSDT(txtTimKiem.Text);
-                if (danhSach.Count == 0)
-                    danhSach = khBUS.LayDS();
-                dgvKhachHang.DataSource = danhSach;
-            }
-            catch { }
+            this.ResumeLayout();
         }
 
         private void DgvKhachHang_CellClick(object sender, DataGridViewCellEventArgs e)
@@ -204,81 +132,149 @@ namespace GUI.Forms
             }
         }
 
-        private void BtnThem_Click(object sender, EventArgs e)
+        private void LoadData()
         {
-            if (string.IsNullOrWhiteSpace(txtMaKH.Text) || string.IsNullOrWhiteSpace(txtTenKH.Text))
-            {
-                MessageBox.Show("Vui lòng nhập Mã KH và Họ Tên", "Thông báo");
-                return;
-            }
-            KhachHang kh = new KhachHang
-            {
-                MaKH = txtMaKH.Text,
-                TenKH = txtTenKH.Text,
-                SoDienThoai = txtSDT.Text,
-                DiaChi = txtDiaChi.Text
-            };
             try
             {
-                khBUS.LuuKhachHang(kh);
-                MessageBox.Show("Thêm khách hàng thành công", "Thông báo");
-                TaiDanhSachKhachHang();
-                LamMoiVungNhap();
+                List<KhachHang> list = khBUS.LayDS();
+                dgvKhachHang.DataSource = list;
             }
-            catch (Exception ex)
+            catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message); }
+        }
+
+        private void SearchData()
+        {
+            try
             {
-                MessageBox.Show("Lỗi: " + ex.Message, "Thông báo");
+                List<KhachHang> list = khBUS.LayDS();
+                if (!string.IsNullOrEmpty(txtTimKiem.Text))
+                    list = list.Where(x => x.TenKH.Contains(txtTimKiem.Text) || x.SoDienThoai.Contains(txtTimKiem.Text)).ToList();
+                dgvKhachHang.DataSource = list;
             }
+            catch { }
+        }
+
+        private void BtnThem_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtTenKH.Text))
+            {
+                MessageBox.Show("Vui lòng nhập Họ Tên khách hàng", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(txtSDT.Text))
+            {
+                MessageBox.Show("Vui lòng nhập Số điện thoại", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                // txtMaKH ReadOnly nên người dùng không nhập được - tự sinh mã mới nếu rỗng
+                string maKH = string.IsNullOrWhiteSpace(txtMaKH.Text) ? GenerateMaKH() : txtMaKH.Text.Trim();
+
+                KhachHang kh = new KhachHang
+                {
+                    MaKH = maKH,
+                    TenKH = txtTenKH.Text.Trim(),
+                    SoDienThoai = txtSDT.Text.Trim(),
+                    DiaChi = txtDiaChi.Text.Trim()
+                };
+
+                if (khBUS.ThemKhachHang(kh))
+                {
+                    MessageBox.Show($"Thêm khách hàng thành công (Mã: {maKH})", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadData();
+                    ClearForm();
+                }
+                else
+                {
+                    MessageBox.Show("Thêm thất bại. Vui lòng kiểm tra dữ liệu.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
 
         private void BtnSua_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtMaKH.Text))
             {
-                MessageBox.Show("Vui lòng chọn khách hàng cần sửa", "Thông báo");
+                MessageBox.Show("Vui lòng chọn khách hàng cần sửa từ danh sách", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            KhachHang kh = new KhachHang
+            if (string.IsNullOrWhiteSpace(txtTenKH.Text))
             {
-                MaKH = txtMaKH.Text,
-                TenKH = txtTenKH.Text,
-                SoDienThoai = txtSDT.Text,
-                DiaChi = txtDiaChi.Text
-            };
+                MessageBox.Show("Vui lòng nhập Họ Tên khách hàng", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(txtSDT.Text))
+            {
+                MessageBox.Show("Vui lòng nhập Số điện thoại", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             try
             {
-                khBUS.SuaKhachHang(kh);
-                MessageBox.Show("Cập nhật khách hàng thành công", "Thông báo");
-                TaiDanhSachKhachHang();
-                LamMoiVungNhap();
+                KhachHang kh = new KhachHang
+                {
+                    MaKH = txtMaKH.Text.Trim(),
+                    TenKH = txtTenKH.Text.Trim(),
+                    SoDienThoai = txtSDT.Text.Trim(),
+                    DiaChi = txtDiaChi.Text.Trim()
+                };
+
+                if (khBUS.SuaKhachHang(kh))
+                {
+                    MessageBox.Show("Cập nhật khách hàng thành công", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadData();
+                    ClearForm();
+                }
+                else
+                {
+                    MessageBox.Show("Cập nhật thất bại. Vui lòng kiểm tra dữ liệu.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Lỗi: " + ex.Message, "Thông báo");
-            }
+            catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
 
         private void BtnXoa_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtMaKH.Text))
             {
-                MessageBox.Show("Vui lòng chọn khách hàng cần xóa", "Thông báo");
+                MessageBox.Show("Vui lòng chọn khách hàng cần xóa từ danh sách", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            if (MessageBox.Show("Xác nhận xóa khách hàng này?", "Xác nhận", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            if (MessageBox.Show($"Xóa khách hàng '{txtMaKH.Text}'?", "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return;
+
+            try
             {
-                try
+                if (khBUS.XoaKhachHang(txtMaKH.Text.Trim()))
                 {
-                    khBUS.XoaKhachHang(txtMaKH.Text);
-                    MessageBox.Show("Xóa khách hàng thành công", "Thông báo");
-                    TaiDanhSachKhachHang();
-                    LamMoiVungNhap();
+                    MessageBox.Show("Xóa khách hàng thành công", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadData();
+                    ClearForm();
                 }
-                catch (Exception ex)
+                else
                 {
-                    MessageBox.Show("Lỗi: " + ex.Message, "Thông báo");
+                    MessageBox.Show("Xóa thất bại. Khách hàng có thể không tồn tại.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+            catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        }
+
+        private string GenerateMaKH()
+        {
+            var list = khBUS.LayDS();
+            int max = 0;
+            foreach (var kh in list)
+            {
+                if (kh.MaKH != null && kh.MaKH.StartsWith("KH") &&
+                    int.TryParse(kh.MaKH.Substring(2), out int n) && n > max)
+                {
+                    max = n;
+                }
+            }
+            return "KH" + (max + 1).ToString("D3");
         }
 
         private void BtnLuu_Click(object sender, EventArgs e)
@@ -289,13 +285,12 @@ namespace GUI.Forms
                 BtnSua_Click(sender, e);
         }
 
-        private void LamMoiVungNhap()
+        private void ClearForm()
         {
             txtMaKH.Clear();
             txtTenKH.Clear();
             txtSDT.Clear();
             txtDiaChi.Clear();
-            txtNgayThamGia.Clear();
             txtTimKiem.Clear();
         }
     }

@@ -18,23 +18,43 @@ namespace BUS
             return _spDAL.LayDS();
         }
 
-        public bool LuuSanPham(SanPham sp)
+        public bool ThemSanPham(SanPham sp)
         {
-            // Nghiệp vụ: Giá bán không được âm
-            if (sp.GiaBan < 0) return false;
+            // Nghiệp vụ: Kiểm tra dữ liệu hợp lệ
+            if (string.IsNullOrWhiteSpace(sp.MaSP) || string.IsNullOrWhiteSpace(sp.TenSP))
+                return false;
+            
+            if (sp.GiaBan < 0 || sp.SoLuongTon < 0)
+                return false;
 
             return _spDAL.Them(sp);
         }
 
         public bool SuaSanPham(SanPham sp)
         {
-            if (sp.GiaBan < 0) return false;
+            if (string.IsNullOrWhiteSpace(sp.MaSP) || string.IsNullOrWhiteSpace(sp.TenSP))
+                return false;
+            
+            if (sp.GiaBan < 0 || sp.SoLuongTon < 0)
+                return false;
+            
             return _spDAL.Sua(sp);
         }
 
         public bool XoaSanPham(string maSP)
         {
-            return _spDAL.Xoa(maSP);
+            if (string.IsNullOrWhiteSpace(maSP))
+                return false;
+            
+            try
+            {
+                return _spDAL.Xoa(maSP);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in XoaSanPham: {ex.Message}");
+                return false;
+            }
         }
     }
 

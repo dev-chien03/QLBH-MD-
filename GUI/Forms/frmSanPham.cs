@@ -3,6 +3,7 @@ using DTO;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace GUI.Forms
@@ -209,9 +210,34 @@ namespace GUI.Forms
 
         private void BtnThem_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtMaSP.Text) || string.IsNullOrWhiteSpace(txtTenSP.Text))
+            if (string.IsNullOrWhiteSpace(txtMaSP.Text))
             {
-                MessageBox.Show("Vui lòng nhập mã và tên sản phẩm", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Vui lòng nhập mã sản phẩm", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(txtTenSP.Text))
+            {
+                MessageBox.Show("Vui lòng nhập tên sản phẩm", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Kiểm tra xem mã SP đã tồn tại chưa
+            var existingSP = spBUS.LayDS().FirstOrDefault(x => x.MaSP == txtMaSP.Text.Trim());
+            if (existingSP != null)
+            {
+                MessageBox.Show("Mã sản phẩm đã tồn tại. Vui lòng sử dụng mã khác hoặc chọn sửa để cập nhật.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!decimal.TryParse(txtGiaBan.Text, out decimal giaBan) || giaBan < 0)
+            {
+                MessageBox.Show("Giá bán phải là số và không được âm", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!int.TryParse(txtSoLuong.Text, out int soLuong) || soLuong < 0)
+            {
+                MessageBox.Show("Số lượng phải là số nguyên và không được âm", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -219,20 +245,20 @@ namespace GUI.Forms
             {
                 MaSP = txtMaSP.Text.Trim(),
                 TenSP = txtTenSP.Text.Trim(),
-                GiaBan = decimal.TryParse(txtGiaBan.Text, out decimal g) ? g : 0,
-                SoLuongTon = int.TryParse(txtSoLuong.Text, out int s) ? s : 0,
+                GiaBan = giaBan,
+                SoLuongTon = soLuong,
                 DonViTinh = txtDVT.Text.Trim(),
                 MaLoai = cboLoaiSP.SelectedValue?.ToString() ?? ""
             };
 
-            if (spBUS.LuuSanPham(sp))
+            if (spBUS.ThemSanPham(sp))
             {
                 MessageBox.Show("Thêm sản phẩm thành công", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 TaiDanhSachSanPham();
                 LamMoiVungNhap();
             }
             else
-                MessageBox.Show("Thêm thất bại", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Thêm thất bại. Vui lòng kiểm tra lại dữ liệu.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         private void BtnSua_Click(object sender, EventArgs e)
@@ -243,12 +269,30 @@ namespace GUI.Forms
                 return;
             }
 
+            if (string.IsNullOrWhiteSpace(txtTenSP.Text))
+            {
+                MessageBox.Show("Vui lòng nhập tên sản phẩm", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!decimal.TryParse(txtGiaBan.Text, out decimal giaBan) || giaBan < 0)
+            {
+                MessageBox.Show("Giá bán phải là số và không được âm", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!int.TryParse(txtSoLuong.Text, out int soLuong) || soLuong < 0)
+            {
+                MessageBox.Show("Số lượng phải là số nguyên và không được âm", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             var sp = new SanPham
             {
                 MaSP = txtMaSP.Text.Trim(),
                 TenSP = txtTenSP.Text.Trim(),
-                GiaBan = decimal.TryParse(txtGiaBan.Text, out decimal g) ? g : 0,
-                SoLuongTon = int.TryParse(txtSoLuong.Text, out int s) ? s : 0,
+                GiaBan = giaBan,
+                SoLuongTon = soLuong,
                 DonViTinh = txtDVT.Text.Trim(),
                 MaLoai = cboLoaiSP.SelectedValue?.ToString() ?? ""
             };
@@ -260,7 +304,7 @@ namespace GUI.Forms
                 LamMoiVungNhap();
             }
             else
-                MessageBox.Show("Cập nhật thất bại", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Cập nhật thất bại. Vui lòng kiểm tra lại dữ liệu.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         private void BtnXoa_Click(object sender, EventArgs e)
@@ -271,7 +315,7 @@ namespace GUI.Forms
                 return;
             }
 
-            if (MessageBox.Show($"Xóa sản phẩm {txtMaSP.Text}?", "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            if (MessageBox.Show($"Xóa sản phẩm '{txtMaSP.Text}'?\n\nLưu ý: Không thể xóa sản phẩm đã được sử dụng trong hóa đơn hoặc phiếu nhập.", "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
                 return;
 
             if (spBUS.XoaSanPham(txtMaSP.Text.Trim()))
@@ -281,15 +325,25 @@ namespace GUI.Forms
                 LamMoiVungNhap();
             }
             else
-                MessageBox.Show("Xóa thất bại", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Xóa thất bại!\n\nLý do: Sản phẩm đã được sử dụng trong hóa đơn hoặc phiếu nhập nên không thể xóa.\n\nVui lòng kiểm tra lại dữ liệu.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         private void BtnLuu_Click(object sender, EventArgs e)
         {
+            // Nếu mã SP rỗng hoặc mã SP không tồn tại trong danh sách, gọi thêm
+            // Nếu mã SP đã tồn tại, gọi sửa
             if (string.IsNullOrWhiteSpace(txtMaSP.Text))
-                BtnThem_Click(null, null);
+            {
+                BtnThem_Click(sender, e);
+            }
             else
-                BtnSua_Click(null, null);
+            {
+                var existingSP = spBUS.LayDS().FirstOrDefault(x => x.MaSP == txtMaSP.Text.Trim());
+                if (existingSP != null)
+                    BtnSua_Click(sender, e);
+                else
+                    BtnThem_Click(sender, e);
+            }
         }
 
         private void LamMoiVungNhap()

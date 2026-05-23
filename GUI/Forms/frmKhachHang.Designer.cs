@@ -32,7 +32,21 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1000, 700);
             this.Text = "Quản Lý Khách Hàng";
-            this.Load += new System.EventHandler(this.frmKhachHang_Load);
+            
+            // Panel Header
+            System.Windows.Forms.Panel pnlHeader = new System.Windows.Forms.Panel();
+            pnlHeader.Dock = System.Windows.Forms.DockStyle.Top;
+            pnlHeader.Height = 50;
+            pnlHeader.BackColor = System.Drawing.Color.FromArgb(200, 240, 180);
+            
+            System.Windows.Forms.Label lblTitle = new System.Windows.Forms.Label();
+            lblTitle.Dock = System.Windows.Forms.DockStyle.Fill;
+            lblTitle.Text = "QUẢN LÝ KHÁCH HÀNG";
+            lblTitle.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            lblTitle.Font = new System.Drawing.Font("Arial", 14, System.Drawing.FontStyle.Bold);
+            pnlHeader.Controls.Add(lblTitle);
+            
+            this.Controls.Add(pnlHeader);
         }
 
         #endregion

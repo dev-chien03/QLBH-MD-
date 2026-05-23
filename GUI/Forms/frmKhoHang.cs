@@ -1,146 +1,175 @@
-﻿using BUS;
+using BUS;
 using DTO;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace GUI.Forms
 {
     public partial class frmKhoHang : Form
     {
-        private SanPhamBUS spBUS = new SanPhamBUS();
+        private const int NGUONG_CANH_BAO = 20; // Tồn <= ngưỡng → cảnh báo "Sắp hết"
+
+        private readonly SanPhamBUS spBUS = new SanPhamBUS();
+        private List<SanPham> _dsSP = new List<SanPham>();
 
         private TextBox txtTimKiem;
-        private DataGridView dgvKhoHang;
+        private Button btnTim, btnNhap, btnLichSu, btnTaiLai;
+        private DataGridView dgvKho;
+        private Label lblTongSP, lblTongTon, lblSoSPSapHet;
 
         public frmKhoHang()
         {
             InitializeComponent();
-        }
-
-        private void frmKhoHang_Load(object sender, EventArgs e)
-        {
-            BuildLayout();
-            TaiDanhSachKho();
+            this.Load += (s, e) => { BuildLayout(); LoadData(); };
         }
 
         private void BuildLayout()
         {
-            SuspendLayout();
-            Controls.Clear();
-
-            Text = "Quản Lý Kho Hàng";
-            StartPosition = FormStartPosition.CenterScreen;
-            Size = new Size(1000, 700);
-            BackColor = Color.White;
+            this.SuspendLayout();
+            this.Controls.Clear();
+            this.Text = "Quản Lý Kho Hàng";
+            this.Size = new Size(1000, 700);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.BackColor = Color.White;
 
             // Header
-            Panel headerPanel = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 50,
-                BackColor = Color.FromArgb(200, 240, 180),
-                BorderStyle = BorderStyle.FixedSingle
-            };
+            Panel pnlHeader = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(200, 240, 180), BorderStyle = BorderStyle.FixedSingle };
+            pnlHeader.Controls.Add(new Label { Dock = DockStyle.Fill, Text = "QUẢN LÝ KHO HÀNG", TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Arial", 13, FontStyle.Bold) });
 
-            Label title = new Label
-            {
-                Dock = DockStyle.Fill,
-                Text = "QUẢN LÝ KHO HÀNG",
-                TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
-                ForeColor = Color.Black
-            };
-            headerPanel.Controls.Add(title);
+            // Search + actions
+            Panel pnlSearch = new Panel { Dock = DockStyle.Top, Height = 60, BorderStyle = BorderStyle.FixedSingle, Padding = new Padding(10), BackColor = Color.White };
+            pnlSearch.Controls.Add(new Label { Text = "Tìm kiếm:", Location = new Point(10, 15), AutoSize = true });
+            txtTimKiem = new TextBox { Location = new Point(80, 12), Size = new Size(280, 25) };
+            pnlSearch.Controls.Add(txtTimKiem);
+            btnTim = new Button { Text = "Tìm", Location = new Point(370, 12), Size = new Size(60, 25), BackColor = Color.LightBlue };
+            pnlSearch.Controls.Add(btnTim);
+            btnTaiLai = new Button { Text = "Tải lại", Location = new Point(440, 12), Size = new Size(70, 25), BackColor = Color.LightGray };
+            pnlSearch.Controls.Add(btnTaiLai);
+            btnNhap = new Button { Text = "Nhập hàng", Location = new Point(520, 12), Size = new Size(100, 25), BackColor = Color.FromArgb(100, 200, 100), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            btnNhap.FlatAppearance.BorderSize = 0;
+            pnlSearch.Controls.Add(btnNhap);
+            btnLichSu = new Button { Text = "Lịch sử nhập", Location = new Point(630, 12), Size = new Size(110, 25), BackColor = Color.FromArgb(220, 150, 200), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            btnLichSu.FlatAppearance.BorderSize = 0;
+            pnlSearch.Controls.Add(btnLichSu);
 
-            // Search & Action Panel
-            Panel searchPanel = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 70,
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
-                Padding = new Padding(12)
-            };
+            // Footer (thống kê tóm tắt)
+            Panel pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 40, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.WhiteSmoke, Padding = new Padding(10) };
+            lblTongSP = new Label { Text = "Tổng SP: 0", Location = new Point(10, 10), AutoSize = true, Font = new Font("Arial", 9, FontStyle.Bold) };
+            lblTongTon = new Label { Text = "Tổng tồn: 0", Location = new Point(150, 10), AutoSize = true, Font = new Font("Arial", 9, FontStyle.Bold) };
+            lblSoSPSapHet = new Label { Text = $"SP sắp hết (≤ {NGUONG_CANH_BAO}): 0", Location = new Point(310, 10), AutoSize = true, Font = new Font("Arial", 9, FontStyle.Bold), ForeColor = Color.DarkRed };
+            pnlFooter.Controls.AddRange(new Control[] { lblTongSP, lblTongTon, lblSoSPSapHet });
 
-            Label lblSearch = new Label { Text = "Tìm kiếm", Left = 10, Top = 10, Width = 60 };
-            txtTimKiem = new TextBox { Left = 70, Top = 8, Width = 160, Height = 24 };
-            Button btnTim = new Button { Text = "Tìm", Left = 240, Top = 8, Width = 60, Height = 24, BackColor = Color.LightBlue };
-            Button btnRefresh = new Button { Text = "Tải lại", Left = 310, Top = 8, Width = 60, Height = 24, BackColor = Color.LightGray };
-
-            Button btnNhapHang = new Button { Text = "Nhập hàng", Left = 240, Top = 40, Width = 80, Height = 24, BackColor = Color.LightSkyBlue };
-            Button btnLichSuNhap = new Button { Text = "Lịch sử nhập hàng", Left = 330, Top = 40, Width = 120, Height = 24, BackColor = Color.Plum };
-
-            searchPanel.Controls.AddRange(new Control[] { lblSearch, txtTimKiem, btnTim, btnRefresh, btnNhapHang, btnLichSuNhap });
-
-            // Grid Panel
-            Panel gridPanel = new Panel
+            // Grid
+            dgvKho = new DataGridView
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.White,
-                Padding = new Padding(12),
-                BorderStyle = BorderStyle.None
-            };
-
-            dgvKhoHang = new DataGridView
-            {
-                Dock = DockStyle.Fill,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 AllowUserToAddRows = false,
                 ReadOnly = true,
-                BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
+                MultiSelect = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BackgroundColor = Color.White
             };
-            dgvKhoHang.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(100, 149, 237);
-            dgvKhoHang.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            dgvKhoHang.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            dgvKho.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(100, 149, 237);
+            dgvKho.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            dgvKho.ColumnHeadersDefaultCellStyle.Font = new Font("Arial", 9, FontStyle.Bold);
+            dgvKho.Columns.Add("STT", "STT");
+            dgvKho.Columns.Add("MaSP", "Mã SP");
+            dgvKho.Columns.Add("TenSP", "Tên Sản Phẩm");
+            dgvKho.Columns.Add("DonVi", "Đơn vị");
+            dgvKho.Columns.Add("GiaBan", "Giá bán");
+            dgvKho.Columns.Add("SoLuongTon", "Số lượng tồn");
+            dgvKho.Columns.Add("TrangThai", "Trạng thái");
+            dgvKho.Columns["GiaBan"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            dgvKho.Columns["SoLuongTon"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
 
-            gridPanel.Controls.Add(dgvKhoHang);
+            // Body container so footer + grid + search stack correctly
+            Panel pnlBody = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10, 0, 10, 0) };
+            pnlBody.Controls.Add(dgvKho);
 
-            Controls.Add(gridPanel);
-            Controls.Add(searchPanel);
-            Controls.Add(headerPanel);
+            this.Controls.Add(pnlBody);
+            this.Controls.Add(pnlFooter);
+            this.Controls.Add(pnlSearch);
+            this.Controls.Add(pnlHeader);
 
             // Events
-            txtTimKiem.TextChanged += TxtTimKiem_TextChanged;
-            btnTim.Click += (s, e) => TaiDanhSachKho();
-            btnRefresh.Click += (s, e) => { TaiDanhSachKho(); txtTimKiem.Clear(); };
-            btnNhapHang.Click += (s, e) => MessageBox.Show("Chức năng nhập hàng sẽ được cập nhật", "Thông báo");
-            btnLichSuNhap.Click += (s, e) => MessageBox.Show("Chức năng lịch sử nhập hàng sẽ được cập nhật", "Thông báo");
+            btnTim.Click += (s, e) => ApplyFilter();
+            btnTaiLai.Click += (s, e) => { txtTimKiem.Clear(); LoadData(); };
+            txtTimKiem.TextChanged += (s, e) => ApplyFilter();
+            txtTimKiem.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; ApplyFilter(); } };
+            btnNhap.Click += (s, e) => MoNhapHang();
+            btnLichSu.Click += (s, e) => MoLichSu();
 
-            ResumeLayout();
+            this.ResumeLayout();
         }
 
-        private void TaiDanhSachKho()
+        private void LoadData()
         {
             try
             {
-                List<SanPham> danhSach = spBUS.LayDS();
-                dgvKhoHang.DataSource = danhSach;
-                dgvKhoHang.Columns["MaSP"].HeaderText = "Mã SP";
-                dgvKhoHang.Columns["TenSP"].HeaderText = "Tên Sản Phẩm";
-                dgvKhoHang.Columns["SoLuongTon"].HeaderText = "Số lượng tồn";
-                dgvKhoHang.Columns["DonViTinh"].HeaderText = "Đơn vị";
-                dgvKhoHang.Columns["GiaBan"].HeaderText = "Đơn giá";
-                dgvKhoHang.Columns["MaLoai"].HeaderText = "Loại";
+                _dsSP = spBUS.LayDS() ?? new List<SanPham>();
+                ApplyFilter();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Lỗi tải dữ liệu: " + ex.Message, "Thông báo");
+                MessageBox.Show("Lỗi tải dữ liệu kho: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void TxtTimKiem_TextChanged(object sender, EventArgs e)
+        private void ApplyFilter()
         {
-            try
+            string kw = (txtTimKiem.Text ?? "").Trim().ToLower();
+            IEnumerable<SanPham> filtered = _dsSP;
+            if (!string.IsNullOrEmpty(kw))
             {
-                List<SanPham> danhSach = spBUS.TimTheoTen(txtTimKiem.Text);
-                if (danhSach.Count == 0)
-                    danhSach = spBUS.LayDS();
-                dgvKhoHang.DataSource = danhSach;
+                filtered = _dsSP.Where(x =>
+                    (!string.IsNullOrEmpty(x.MaSP) && x.MaSP.ToLower().Contains(kw)) ||
+                    (!string.IsNullOrEmpty(x.TenSP) && x.TenSP.ToLower().Contains(kw)));
             }
-            catch { }
+            BindData(filtered.ToList());
+        }
+
+        private void BindData(List<SanPham> data)
+        {
+            dgvKho.Rows.Clear();
+            int stt = 1;
+            foreach (var item in data)
+            {
+                string trangThai;
+                Color foreColor;
+                if (item.SoLuongTon <= 0) { trangThai = "Hết hàng"; foreColor = Color.Red; }
+                else if (item.SoLuongTon <= NGUONG_CANH_BAO) { trangThai = "Sắp hết"; foreColor = Color.DarkOrange; }
+                else { trangThai = "Bình thường"; foreColor = Color.DarkGreen; }
+
+                int rowIdx = dgvKho.Rows.Add(stt++, item.MaSP, item.TenSP, item.DonViTinh, item.GiaBan.ToString("N0"), item.SoLuongTon, trangThai);
+                dgvKho.Rows[rowIdx].Cells["TrangThai"].Style.ForeColor = foreColor;
+                dgvKho.Rows[rowIdx].Cells["TrangThai"].Style.Font = new Font("Arial", 9, FontStyle.Bold);
+            }
+
+            // Cập nhật footer dùng toàn bộ _dsSP (không phụ thuộc filter)
+            lblTongSP.Text = "Tổng SP: " + _dsSP.Count;
+            lblTongTon.Text = "Tổng tồn: " + _dsSP.Sum(x => x.SoLuongTon).ToString("N0");
+            lblSoSPSapHet.Text = $"SP sắp hết (≤ {NGUONG_CANH_BAO}): " + _dsSP.Count(x => x.SoLuongTon <= NGUONG_CANH_BAO);
+        }
+
+        private void MoNhapHang()
+        {
+            using (var f = new frmNhapHang())
+            {
+                f.ShowDialog(this);
+                if (f.DaLuu) LoadData(); // Refresh tồn kho sau khi nhập
+            }
+        }
+
+        private void MoLichSu()
+        {
+            using (var f = new frmLichSuNhap())
+            {
+                f.ShowDialog(this);
+            }
         }
     }
 }

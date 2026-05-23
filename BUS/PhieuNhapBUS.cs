@@ -24,17 +24,20 @@ namespace BUS
 
         public bool NhapHangVaoKho(PhieuNhap pn, List<ChiTietPN> dsChiTiet)
         {
-            // 1. Lưu phiếu nhập
-            if (_pnDAL.LuuPhieuNhap(pn))
-            {
-                // 2. Lưu chi tiết phiếu nhập (tự động cộng tồn kho ở SQL)
-                foreach (var item in dsChiTiet)
-                {
-                    _pnDAL.LuuChiTiet(item);
-                }
-                return true;
-            }
-            return false;
+            // Lưu nguyên tử: PhieuNhap + tất cả ChiTietPN trong 1 transaction.
+            // MaPN sinh trong transaction (MAX+1), gán lại vào pn.MaPN.
+            _pnDAL.NhapKhoAtomic(pn, dsChiTiet);
+            return true;
+        }
+
+        public string TaoMaPNMoi()
+        {
+            return _pnDAL.LayMaPNMoi();
+        }
+
+        public List<ChiTietPN> LayTatCaChiTiet()
+        {
+            return _pnDAL.LayTatCaChiTiet();
         }
     }
 }

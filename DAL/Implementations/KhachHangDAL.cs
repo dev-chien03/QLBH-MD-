@@ -63,13 +63,22 @@ namespace DAL.Implementations
 
         public bool Sua(KhachHang kh)
         {
-            MySqlParameter[] p = {
-                new MySqlParameter("p_MaKH", kh.MaKH),
-                new MySqlParameter("p_TenKH", kh.TenKH),
-                new MySqlParameter("p_SDT", kh.SoDienThoai),
-                new MySqlParameter("p_DiaChi", kh.DiaChi)
-            };
-            return db.ExecuteNonQuery("sp_SuaKhachHang", p);
+            try
+            {
+                MySqlParameter[] p = {
+                    new MySqlParameter("p_MaKH", kh.MaKH),
+                    new MySqlParameter("p_TenKH", kh.TenKH),
+                    new MySqlParameter("p_SDT", kh.SoDienThoai),
+                    new MySqlParameter("p_DiaChi", kh.DiaChi)
+                };
+                db.ExecuteNonQuery("sp_SuaKhachHang", p);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating customer: {ex.Message}");
+                return false;
+            }
         }
 
         public bool Xoa(string maKH)

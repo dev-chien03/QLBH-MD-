@@ -134,7 +134,7 @@ CREATE PROCEDURE sp_SuaSanPham(
 )
 BEGIN
   UPDATE SanPham SET TenSP=p_TenSP, GiaBan=p_Gia, SoLuongTon=p_Ton, 
-					 DonViTinh=p_DVT, MaLoai=p_MaLoai WHERE MaSP=p_MaSP;
+					 DonViTinh=p_DVT, MaLoai=p_MaLoai WHERE MaSP=p_MaSP COLLATE utf8mb4_unicode_ci;
 END //
 DELIMITER ;
 
@@ -142,7 +142,19 @@ DELIMITER ;
 DELIMITER //
 CREATE PROCEDURE sp_XoaSanPham(IN p_maSP VARCHAR(10))
 BEGIN
-  DELETE FROM SanPham WHERE MaSP=p_maSP;
+  DECLARE msg VARCHAR(255);
+  
+  -- Kiểm tra sản phẩm có được sử dụng trong hóa đơn không
+  IF EXISTS(SELECT 1 FROM ChiTietHD WHERE MaSP = p_maSP) THEN
+    SELECT 'Không thể xóa. Sản phẩm đã được sử dụng trong hóa đơn.' AS error_message;
+  -- Kiểm tra sản phẩm có được sử dụng trong phiếu nhập không
+  ELSEIF EXISTS(SELECT 1 FROM ChiTietPN WHERE MaSP = p_maSP) THEN
+    SELECT 'Không thể xóa. Sản phẩm đã được sử dụng trong phiếu nhập.' AS error_message;
+  ELSE
+    -- Nếu không được sử dụng, tiến hành xóa
+    DELETE FROM SanPham WHERE MaSP = p_maSP;
+    SELECT 'Xóa thành công' AS success_message;
+  END IF;
 END //
 DELIMITER ;
 

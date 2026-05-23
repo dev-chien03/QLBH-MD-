@@ -22,6 +22,11 @@ namespace BUS
             return _hdDAL.LayDS();
         }
 
+        public List<ChiTietHD> LayTatCaChiTiet()
+        {
+            return _hdDAL.LayTatCaChiTiet();
+        }
+
         public bool LuuHoaDon(HoaDon hd)
         {
             return _hdDAL.LuuHoaDon(hd);
@@ -29,17 +34,10 @@ namespace BUS
 
         public bool XuatHoaDon(HoaDon hd, List<ChiTietHD> dsChiTiet)
         {
-            // 1. Lưu thông tin hóa đơn tổng trước
-            if (_hdDAL.LuuHoaDon(hd))
-            {
-                // 2. Lưu từng dòng chi tiết
-                foreach (var item in dsChiTiet)
-                {
-                    _hdDAL.LuuChiTiet(item);
-                }
-                return true;
-            }
-            return false;
+            // Lưu nguyên tử: HoaDon + tất cả ChiTietHD trong 1 transaction.
+            // MaHD được sinh bên trong transaction (MAX+1) và gán lại vào hd.MaHD.
+            _hdDAL.XuatHoaDonAtomic(hd, dsChiTiet);
+            return true;
         }
     }
 }
